@@ -1,5 +1,7 @@
 # ananta — Complete Documentation
+<img width="2048" height="768" alt="Ananta" src="https://github.com/user-attachments/assets/744deaba-c414-4d2d-8cdd-8c8ac6bf4f92" />
 
+---
 A scrollable tiling terminal multiplexer written in Go (~6.8k lines).
 Inspired by niri and PaperWM on the layout side, and tmux on the session side.
 
