@@ -119,29 +119,166 @@ Single process: stdin → input assembler → mux loop → terminal. No server, 
 
 ### Control commands (run against a live session)
 
+These commands act on a running session over the unix socket. Every control
+command accepts `-s NAME` to pick the session; without it, the session you are
+inside (`ANANTA_SESSION`/`ANANTA_PANE` env vars) is used, else `main`. Inside
+`ananta local` there is no session, so `-s NAME` is required.
+
+Flags may appear before or after the program argument. The program always goes
+in **double quotes, as one argument**.
+
+---
+
+#### `open` (alias `run`)
+
+Starts a program in a new pane.
+
 ```
-ananta open "htop" -n 3 -w 0.33 -s test   # htop in workspace 3, 33% width, session "test"
+ananta open "htop" -n 3 -w 0.33 -s test
 ananta open "tail -f /var/log/syslog" --below
-ananta open "make watch" -k               # -k / --keep-focus: don't move keyboard focus
-ananta open "htop" --focus -n 3           # --focus: also switch view to that workspace
-ananta open                                # no program: a new shell
-ananta workspace 3                         # switch the view to workspace 3
-ananta focus left\|right\|up\|down         # move focus
-ananta width 50%                           # set focused column width
-ananta send -e "make test"                 # type into focused pane (-e presses Enter)
-ananta close                               # close focused pane
-ananta list                                # list panes (id, workspace, column, width, program)
-ananta action overview                     # run any bound action by name
-ananta action goto_workspace 2
+ananta open "make watch" -k
+ananta open "htop" --focus -n 3
+ananta open                                  # no program: a new shell
+ananta open "nvim" -d ~/projects -n 2        # start in a directory
 ```
 
-- The program always goes in **double quotes, as one argument**.
-- `-s NAME` selects the session; otherwise defaults to the session you are inside
-  (every pane has `ANANTA_SESSION` and `ANANTA_PANE` set), else `main`.
-- Inside `ananta local` there is no session; use `-s NAME` to target one.
-- `-p ID` targets a specific pane (get IDs from `ananta open` or `ananta list`).
-- Works on `close`, `send`, `width`.
-- `ananta help` prints this usage.
+| Flag | Meaning |
+|------|---------|
+| `-n N` / `--workspace N` | Workspace number (1–9) to open in |
+| `-w W` / `--width W` | Column width: `0.33`, `33%`, or `33` |
+| `-d DIR` / `--dir DIR` | Working directory (default: where you ran the command) |
+| `--below` | Stack the pane under the focused one instead of a new column |
+| `--focus` | Switch the view to that workspace after opening |
+| `-k` / `--keep-focus` | Do not move keyboard focus to the new pane |
+| `-p ID` | Target pane ID (not normally used with `open`) |
+| `-s NAME` | Session name |
+
+Returns the new pane's ID; pass it to `-p ID` on later `width`, `send`, `close`.
+
+---
+
+#### `workspace`
+
+Switches the view to a workspace.
+
+```
+ananta workspace 3
+ananta workspace 0   # current workspace (no-op)
+```
+
+Workspace must be `1`–`9`; `0` means the current one.
+
+---
+
+#### `focus`
+
+Moves focus between columns and panes.
+
+```
+ananta focus left
+ananta focus right
+ananta focus up
+ananta focus down
+```
+
+Direction must be `left`, `right`, `up`, or `down`. Equivalent to pressing the
+bound arrow/hjkl focus keys.
+
+---
+
+#### `width`
+
+Resizes the focused column (or a targeted pane's column).
+
+```
+ananta width 50%
+ananta width 0.33
+ananta width 33
+ananta width -p 5 33%      # resize column containing pane ID 5
+```
+
+Width is a fraction of the screen: `0.33`, `33%`, or bare `33` (treated as a
+percentage when `> 1`). Range is 1%–100%. `-p ID` targets a specific pane;
+otherwise the focused pane's column is resized.
+
+---
+
+#### `close`
+
+Closes a pane.
+
+```
+ananta close
+ananta close -p 5
+```
+
+`-p ID` targets a specific pane (get IDs from `ananta open` or `ananta list`);
+otherwise the focused pane is closed. If the column empties, it is removed.
+
+---
+
+#### `send`
+
+Types text into a pane's PTY.
+
+```
+ananta send "make test"
+ananta send -e "make test"        # types text then presses Enter
+ananta send -p 5 "hello world"    # target pane ID 5
+ananta send -p 5 -e "ls -la\n"    # target pane + Enter
+```
+
+| Flag | Meaning |
+|------|---------|
+| `-e` / `--enter` | Press Enter after sending the text (appends `\r`) |
+| `-p ID` | Target pane ID; otherwise the focused pane |
+
+If `Enter` is set, the text runs immediately (useful for commands like `make
+test`). Without `-e`, the text is typed but not executed.
+
+---
+
+#### `list`
+
+Lists every pane in the session.
+
+```
+ananta list
+```
+
+Output table: `ID  WS  COL  WIDTH  PROGRAM` with `*` marking the focused pane.
+Use the IDs with `-p ID` on `close`, `send`, and `width`.
+
+---
+
+#### `action`
+
+Runs any bound action by name, exactly as if its key chord was pressed.
+
+```
+ananta action overview
+ananta action goto_workspace 2
+ananta action detach
+ananta action toggle_bar
+ananta action move_to_workspace 3
+ananta action new_pane htop
+```
+
+The action name must exist in `internal/config/actions.go` (`ActionInfo`);
+unknown names produce an error. Everything after the action name is passed as
+its argument (e.g. `goto_workspace 2`, `new_pane htop`).
+
+---
+
+### Session targeting rules
+
+1. If `-s NAME` is given → that session.
+2. Else, if running inside a pane (`ANANTA_SESSION` set) → that session.
+3. Else, if `ANANTA=1` (`ananta local` mode) → error: no session to control;
+   use `-s NAME`.
+4. Else → session `main`.
+
+`ananta help` prints this control usage.
 
 ---
 
