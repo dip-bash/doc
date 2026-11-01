@@ -11,5 +11,4 @@
 ```
 ---
 
-- [Ananta terminal mux](ananta/ananta-doc.md)
-
+- [Ananta terminal mux](ananta/Home.md)
